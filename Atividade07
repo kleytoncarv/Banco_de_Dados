@@ -1,0 +1,126 @@
+create database site;
+use site;
+
+create table usuario(
+user_codigo INT auto_increment primary key,
+user_nome VARCHAR(100),
+user_senha VARCHAR(100),
+user_nivel INT
+);
+
+create table produtos(
+prod_codigo INT auto_increment primary key,
+prod_nome varchar(100),
+prod_preco float,
+prod_unidade_medida int,
+prod_cod_barras varchar(13),
+prod_departamento int,
+prod_estoque decimal(15,4)
+);
+
+create table unidade_medida(
+uni_codigo INT auto_increment primary key,
+uni_nome varchar(100)
+);
+
+create table departamentos(
+dep_codigo INT auto_increment primary key,
+dep_nome varchar(100)
+);
+
+create table itens_venda(
+iven_codigo INT auto_increment primary key,
+iven_valor decimal(15,4),
+iven_desconto decimal(15,4),
+iven_total decimal(15,4),
+iven_produto int,
+ven_fk_venda int
+);
+
+create table vendas(
+ven_codigo INT auto_increment primary key,
+ven_data date,
+rec_valor decimal(15,4),
+ven_cliente int,
+ven_status boolean
+);
+
+create table forma_pagamentos(
+fpag_codigo INT auto_increment primary key,
+fpag_nome varchar(30)
+);
+
+create table recebimento(
+rec_codigo INT auto_increment primary key,
+red_data date,
+rec_valor decimal(15,4),
+rec_fk_codigo_venda int,
+rec_fk_codigo_formapag int
+);
+
+create table cliente(
+cli_codigo INT auto_increment primary key,
+cli_nome varchar(100),
+cli_endereco varchar(60),
+cli_cpf decimal(10,0),
+cli_tel decimal(10,0),
+cli_bairro varchar(60),
+cli_num_casa varchar(10),
+cli_fk_cidade_codigo int
+);
+
+create table cidade(
+cid_codigo INT auto_increment primary key,
+cid_nome varchar(100),
+cid_fk_estado int
+);
+
+create table estados(
+est_codigo INT auto_increment primary key,
+est_nome varchar(100)
+);
+
+alter table cliente
+add constraint FK_CLIENTE
+foreign key (cli_fk_cidade_codigo)
+references cidade(cid_codigo);
+
+alter table itens_venda
+add constraint FK_IVEN_VEN
+foreign key (iven_produto)
+references produtos(prod_codigo);
+
+alter table itens_venda
+add constraint FK_IVEN_PRODUTOS
+foreign key (ven_fk_venda)
+references vendas(ven_codigo);
+
+alter table cidade
+add constraint FK_CIDADE
+foreign key (cid_fk_estado)
+references estados(est_codigo);
+
+alter table recebimento
+add constraint FK_RECEBIMENTO
+foreign key (rec_fk_codigo_formapag)
+references forma_pagamentos(fpag_codigo);
+
+alter table recebimento
+add constraint FK_RECEBIMENTO_VENDA
+foreign key (rec_fk_codigo_venda)
+references vendas(ven_codigo);
+
+alter table vendas
+add constraint FK_VENDAS
+foreign key (ven_cliente)
+references cliente(cli_codigo);
+
+alter table produtos
+add constraint FK_PRODUTO_MEDIDA
+foreign key (prod_unidade_medida)
+references unidade_medida(uni_codigo);
+
+alter table produtos
+add constraint FK_PRODUTO_DEPARTAMENTO
+foreign key (prod_departamento)
+references departamentos(dep_codigo);
