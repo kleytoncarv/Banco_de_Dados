@@ -115,7 +115,6 @@ INNER JOIN Racas r ON a.a_rid = r.r_id;
 
 SELECT * FROM Cliente_Raca_Animais_v2;
 
-------------------------------------
 
 CREATE TRIGGER Tgr_Estoque_Insert_BaixaDoLucro AFTER INSERT
 ON itens_da_ordem_de_servico
@@ -123,7 +122,7 @@ FOR EACH ROW
 UPDATE lucro SET l_lucro = produto_servico.ps_valor - produto_servico.ps_custo
 WHERE l_produto_serviço_id = NEW.ido_produto_servico_id;
 
----------------------------------------------------
+
 
 CREATE TRIGGER Tgr_Estoque_Insert_BaixaDoLucro AFTER INSERT
 ON itens_da_ordem_de_servico
@@ -132,7 +131,6 @@ UPDATE lucro
 SET l_lucro = (SELECT ps_preco - ps_custo FROM produto_servico WHERE ps_produto_servico_id = NEW.ido_produto_servico_id)
 WHERE l_produto_serviço_id = NEW.ido_produto_servico_id;
 
-------------------------
 
 CREATE TRIGGER Tgr_Estoque_Insert_VoltaDoLucro AFTER DELETE
 ON itens_da_ordem_de_servico
@@ -140,8 +138,6 @@ FOR EACH ROW
 UPDATE lucro
 SET l_lucro = l_lucro - (SELECT ps_preco - ps_custo FROM produto_servico WHERE ps_produto_servico_id = OLD.ido_produto_servico_id)
 WHERE l_produto_serviço_id = OLD.ido_produto_servico_id;
-
-----------
 
 CREATE TRIGGER Tgr_Estoque_Insert_BaixaDoEstoque AFTER INSERT
 ON itens_da_ordem_de_servico
@@ -154,8 +150,6 @@ ON itens_da_ordem_de_servico
 FOR EACH ROW
 UPDATE estoque SET e_estoque = e_estoque + OLD.ido_quantidade
 WHERE e_produto_serviço_id = OLD.ido_produto_servico_id;
-
-------------
 
 CREATE TABLE Agendamento (
     ag_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -190,7 +184,7 @@ CREATE TABLE Logs (
     log_mensagem TEXT
 );
 
--- Exemplo de inserção de registro de log
+
 INSERT INTO Logs (log_tipo, log_mensagem)
 VALUES ('Erro', 'Ocorreu um erro na importação de dados do cliente.');
 
@@ -216,13 +210,11 @@ CREATE VIEW Logs_View AS
 SELECT log_id, log_data_hora, log_tipo, log_mensagem
 FROM Logs;
 
--- Consulta para obter os animais agendados da semana
+
 SELECT * FROM Animais_Agendados_Semana;
 
--- Consulta para obter o ranking dos animais que mais consumiram no mês
 SELECT * FROM Ranking_Consumo_Mensal;
 
--- Consulta para obter os logs
 SELECT * FROM Logs_View;
 
 DELIMITER //
@@ -269,24 +261,41 @@ END;
 //
 DELIMITER ;
 
+
+ALTER TABLE Itens_da_ordem_de_servico
+ADD COLUMN ido_animal_id INT;
+
+
+UPDATE Itens_da_ordem_de_servico AS ido
+JOIN Ordem_de_servico AS o ON ido.ido_ordem_id = o.o_ordem_id
+SET ido.ido_animal_id = o.o_animal_id;
+
+SET SQL_SAFE_UPDATES = 0;
+SET SQL_SAFE_UPDATES = 1;
+
+
+ALTER TABLE Itens_da_ordem_de_servico
+ADD INDEX idx_ido_animal_id (ido_animal_id);
+
 DELIMITER //
 CREATE TRIGGER Trg_Animal_Historico_Insert
 AFTER INSERT ON Itens_da_ordem_de_servico
-    FOR EACH ROW
+FOR EACH ROW
 BEGIN
     DECLARE animal_id INT;
-    
-    -- Encontre o ID do animal associado a esta ordem de serviço
+
+
     SELECT o.o_animal_id INTO animal_id
     FROM Ordem_de_servico o
     WHERE o.o_ordem_id = NEW.ido_ordem_id;
 
-    -- Insira um registro no Animal_Historico com base no ID do animal
     INSERT INTO Animal_Historico (ah_animal_id, ah_data, ah_evento, ah_observacoes)
     VALUES (animal_id, NOW(), 'Inserção de Item de Ordem de Serviço', NULL);
 END;
 //
 DELIMITER ;
+-- usa isso aqui se ficar duplicado e der erro na criação do trigger de cima
+DROP INDEX IF EXISTS idx_ido_animal_id ON Itens_da_ordem_de_servico;
 
 
 DELIMITER //
