@@ -1,5 +1,5 @@
-create database PetShopBraba;
-use PetShopBraba;
+create database PetShop18;
+use PetShop18;
 
 CREATE TABLE Racas (
     r_id INT AUTO_INCREMENT PRIMARY KEY,
