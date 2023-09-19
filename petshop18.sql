@@ -112,6 +112,7 @@ SELECT c.c_id, c.c_nome, r.r_id, r.r_nome, a.a_animal_id, a.a_nome, a.q_quantida
 FROM Clientes c
 INNER JOIN Animais a ON c.c_id = a.a_cliente_id
 INNER JOIN Racas r ON a.a_rid = r.r_id;
+
 SELECT * FROM Cliente_Raca_Animais_v2;
 
 ------------------------------------
@@ -181,3 +182,125 @@ CREATE TABLE Animal_Historico (
     ah_observacoes TEXT,
     CONSTRAINT fk_ah_animal_id FOREIGN KEY (ah_animal_id) REFERENCES Animais(a_animal_id)
 );
+
+CREATE TABLE Logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    log_tipo VARCHAR(100),
+    log_mensagem TEXT
+);
+
+-- Exemplo de inserção de registro de log
+INSERT INTO Logs (log_tipo, log_mensagem)
+VALUES ('Erro', 'Ocorreu um erro na importação de dados do cliente.');
+
+CREATE VIEW Animais_Agendados_Semana AS
+SELECT ag.ag_id, ag.ag_animal_id, ag.ag_data, ag.ag_horario, a.a_nome AS nome_animal, a.a_cliente_id, c.c_nome AS nome_cliente
+FROM Agendamento ag
+INNER JOIN Animais a ON ag.ag_animal_id = a.a_animal_id
+INNER JOIN Clientes c ON a.a_cliente_id = c.c_id
+WHERE YEARWEEK(ag.ag_data, 1) = YEARWEEK(CURRENT_DATE(), 1);
+
+CREATE VIEW Ranking_Consumo_Mensal AS
+SELECT a.a_animal_id, a.a_nome AS nome_animal, a.a_cliente_id, c.c_nome AS nome_cliente, SUM(ido.ido_quantidade * ps.ps_preco) AS total_consumido
+FROM Animais a
+INNER JOIN Clientes c ON a.a_cliente_id = c.c_id
+INNER JOIN Ordem_de_servico o ON a.a_animal_id = o.o_animal_id
+INNER JOIN Itens_da_ordem_de_servico ido ON o.o_ordem_id = ido.ido_ordem_id
+INNER JOIN Produto_Servico ps ON ido.ido_produto_servico_id = ps.ps_produto_servico_id
+WHERE YEAR(o.o_data_do_servico) = YEAR(CURRENT_DATE()) AND MONTH(o.o_data_do_servico) = MONTH(CURRENT_DATE())
+GROUP BY a.a_animal_id
+ORDER BY total_consumido DESC;
+
+CREATE VIEW Logs_View AS
+SELECT log_id, log_data_hora, log_tipo, log_mensagem
+FROM Logs;
+
+-- Consulta para obter os animais agendados da semana
+SELECT * FROM Animais_Agendados_Semana;
+
+-- Consulta para obter o ranking dos animais que mais consumiram no mês
+SELECT * FROM Ranking_Consumo_Mensal;
+
+-- Consulta para obter os logs
+SELECT * FROM Logs_View;
+
+DELIMITER //
+CREATE TRIGGER Trg_Logs_After_Insert_Update_Delete
+AFTER INSERT ON Produto_Servico
+    FOR EACH ROW
+BEGIN
+    INSERT INTO Logs (log_tipo, log_mensagem)
+    VALUES ('INSERT', CONCAT('Inserção na tabela Produto_Serviço: ID ', NEW.ps_produto_servico_id));
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE TRIGGER Trg_Logs_After_Insert_Update_Delete_Ordem
+AFTER INSERT ON Ordem_de_servico
+    FOR EACH ROW
+BEGIN
+    INSERT INTO Logs (log_tipo, log_mensagem)
+    VALUES ('INSERT', CONCAT('Inserção na tabela Ordem_de_serviço: ID ', NEW.o_ordem_id));
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE TRIGGER Trg_Logs_After_Insert_Update_Delete_Vacinas
+AFTER INSERT ON Vacinas_Aplicadas
+    FOR EACH ROW
+BEGIN
+    INSERT INTO Logs (log_tipo, log_mensagem)
+    VALUES ('INSERT', CONCAT('Inserção na tabela Vacinas_Aplicadas: ID ', NEW.va_aplicacao_id));
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE TRIGGER Trg_Animal_Historico_Insert
+AFTER INSERT ON Itens_da_ordem_de_servico
+    FOR EACH ROW
+BEGIN
+    INSERT INTO Animal_Historico (ah_animal_id, ah_data, ah_evento, ah_observacoes)
+    VALUES (NEW.ido_animal_id, NOW(), 'Inserção de Item de Ordem de Serviço', NULL);
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE TRIGGER Trg_Animal_Historico_Insert
+AFTER INSERT ON Itens_da_ordem_de_servico
+    FOR EACH ROW
+BEGIN
+    DECLARE animal_id INT;
+    
+    -- Encontre o ID do animal associado a esta ordem de serviço
+    SELECT o.o_animal_id INTO animal_id
+    FROM Ordem_de_servico o
+    WHERE o.o_ordem_id = NEW.ido_ordem_id;
+
+    -- Insira um registro no Animal_Historico com base no ID do animal
+    INSERT INTO Animal_Historico (ah_animal_id, ah_data, ah_evento, ah_observacoes)
+    VALUES (animal_id, NOW(), 'Inserção de Item de Ordem de Serviço', NULL);
+END;
+//
+DELIMITER ;
+
+
+DELIMITER //
+CREATE TRIGGER Trg_Agendamento_Insert
+AFTER INSERT ON Animais
+    FOR EACH ROW
+BEGIN
+    INSERT INTO Agendamento (ag_animal_id, ag_data, ag_horario, ag_servico, ag_observacoes)
+    VALUES (NEW.a_animal_id, CURDATE(), CURTIME(), 'Serviço Padrão', NULL);
+END;
+//
+DELIMITER ;
+
+
+
+
+
